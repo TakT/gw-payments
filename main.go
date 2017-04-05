@@ -1,27 +1,26 @@
 package main
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"github.com/buaazp/fasthttprouter"
+	"github.com/jinzhu/gorm"
 	"github.com/valyala/fasthttp"
 	"log"
 	"strconv"
-	"github.com/jinzhu/gorm"
-	_ "github.com/go-sql-driver/mysql"
-	"bytes"
-	"encoding/base64"
-)
+) // подгрузка библиотек
 
 func main() {
 
-	r := fasthttprouter.New()
+	r := fasthttprouter.New() // переменная для https запроса
 
-	r.GET("/check/:id", AddMiddleware(check, AuthMiddleware))
-	r.POST("/check/:id/do", do)
+	r.GET("/check/:id", AddMiddleware(check, AuthMiddleware)) // получить данные для проверки
+	r.POST("/check/:id/do", do)                               // выполнить действие
 
 	//h = fasthttp.CompressHandler(check)
 
-	log.Fatal(fasthttp.ListenAndServe(":9898", r.Handler))
+	log.Fatal(fasthttp.ListenAndServe(":9898", r.Handler)) // если ошибка
 }
 
 func check(ctx *fasthttp.RequestCtx) {
@@ -43,18 +42,20 @@ func check(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.Add("Content-Type", "application/json; charset=utf-8")
 	ctx.Response.Header.Add("Accept", "application/json")
 	ctx.Response.SetBody(res)
-}
+} // функция проверки, отправляет запрос по https, получает значение id выводит его на экран
 
+// функция на исполнение
 func do(ctx *fasthttp.RequestCtx) {
-	idValue := ctx.UserValue("id").(string)
-	id, err := strconv.Atoi(idValue)
-	if err != nil {
-		println("err", err.Error())
-	}
-	println("id", id, idValue)
 
-	var doRequest DoRequest
-	body := ctx.PostBody()
+	idValue := ctx.UserValue("id").(string) // Переменная, в которой значение типа строка. Закладывем занчение контекста
+	id, err := strconv.Atoi(idValue)        // В переменные присваимваем значение idValue - Конвертация с строки в число
+	if err != nil {
+		println("err", err.Error()) // Если ошибка, то вывести на экран
+	}
+	println("id", id, idValue) // а так выводит значение
+
+	var doRequest DoRequest // переменная типа doRequest
+	body := ctx.PostBody()  // переменная body помещаем туда контекст
 	if err := json.Unmarshal(body, &doRequest); err != nil {
 		println("err", err.Error())
 	}
@@ -71,15 +72,17 @@ func do(ctx *fasthttp.RequestCtx) {
 		println("doRequest.Save", err.Error())
 	}
 
-	xmlResponse, err := doRequest.Send()
+	xmlResponse, err := doRequest.Send() // отправляет ответ запроса
+
 	if err != nil {
 		println("doRequest.Send", err.Error())
 	}
-	println("xmlResponse", xmlResponse)
+	println("xmlResponse", xmlResponse) // выводит ответ в xml
 
-	ctx.Response.Header.Add("Content-Type", "application/json; charset=utf-8")
+	ctx.Response.Header.Add("Content-Type", "application/json; charset=utf-8") // формируем заголовок
 	ctx.Response.Header.Add("Accept", "application/json")
-	ctx.Response.SetBody(res)
+	ctx.Response.SetBody(res) // формируем тело
+
 }
 
 type APIError struct {
@@ -113,14 +116,14 @@ func (r DoRequest) Send() (string, error) {
 
 	body := ""
 
-	req := fasthttp.AcquireRequest()
-	req.SetRequestURI("https://192.168.1.168:5858/issuingws/services/Issuing")
-	req.Header.SetMethod("POST")
-	req.SetBodyString(body)
+	req := fasthttp.AcquireRequest()                 // запрос
+	req.SetRequestURI("https://ibskg.ru:5858/check") //???
+	req.Header.SetMethod("POST")                     // запрос ПОСТ
+	req.SetBodyString(body)                          // задать тело запроса
 
-	resp := fasthttp.AcquireResponse()
-	client := &fasthttp.Client{}
-	client.Do(req, resp)
+	resp := fasthttp.AcquireResponse() // ответ
+	client := &fasthttp.Client{}       // создаем клиента, надо тело
+	client.Do(req, resp)               // выполнить запрос ответ
 
 	bodyBytes := resp.Body()
 	println(string(bodyBytes))
@@ -132,7 +135,9 @@ func (r DoRequest) Send() (string, error) {
 }
 
 func getDB() *gorm.DB {
-	db, err := gorm.Open("mysql", "u_payments:u_payments@/a_payments?charset=utf8&parseTime=True&loc=Local")
+	//db, err := gorm.Open("MySQL", "u_payments:u_payments@/a_payments?charset=utf8&parseTime=True&loc=Local")
+	db, err := gorm.Open("postgres", "host=localhost user=asel1 password=Asel1 dbname=ibskg sslmode=disable")
+
 	if err != nil {
 		log.Println("failed to connect database")
 	}
@@ -146,10 +151,11 @@ func AddMiddleware(h fasthttp.RequestHandler, middleware ...func(handler fasthtt
 	return h
 }
 
+// что это? авторизация, но куда?
 var basicAuthPrefix = []byte("Basic ")
 
 func AuthMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
-	return fasthttp.RequestHandler(func(ctx *fasthttp.RequestCtx){
+	return fasthttp.RequestHandler(func(ctx *fasthttp.RequestCtx) {
 		// Get the Basic Authentication credentials
 		auth := ctx.Request.Header.Peek("Authorization")
 		if bytes.HasPrefix(auth, basicAuthPrefix) {
@@ -157,7 +163,7 @@ func AuthMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 			payload, err := base64.StdEncoding.DecodeString(string(auth[len(basicAuthPrefix):]))
 			if err == nil {
 				user := []byte("test")
-				password:= []byte("test")
+				password := []byte("test")
 				pair := bytes.SplitN(payload, []byte(":"), 2)
 				if len(pair) == 2 &&
 					bytes.Equal(pair[0], user) &&
