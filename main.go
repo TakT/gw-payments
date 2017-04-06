@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 	"github.com/buaazp/fasthttprouter"
 	"github.com/jinzhu/gorm"
 	"github.com/valyala/fasthttp"
@@ -15,8 +16,11 @@ func main() {
 
 	r := fasthttprouter.New() // переменная для https запроса
 
-	r.GET("/check/:id", AddMiddleware(check, AuthMiddleware)) // получить данные для проверки
-	r.POST("/check/:id/do", do)                               // выполнить действие
+	baseAuth := base64.StdEncoding.EncodeToString([]byte("test:test"))
+	println("BaseAuth", baseAuth)
+
+	r.GET("/check/:id", AddMiddleware(check, AuthMiddleware, HeadersMiddleware))  // получить данные для проверки
+	r.POST("/check/:id/do", AddMiddleware(do, AuthMiddleware, HeadersMiddleware)) // выполнить действие
 
 	//h = fasthttp.CompressHandler(check)
 
@@ -39,8 +43,6 @@ func check(ctx *fasthttp.RequestCtx) {
 		println("json.Marshal", err.Error())
 	}
 
-	ctx.Response.Header.Add("Content-Type", "application/json; charset=utf-8")
-	ctx.Response.Header.Add("Accept", "application/json")
 	ctx.Response.SetBody(res)
 } // функция проверки, отправляет запрос по https, получает значение id выводит его на экран
 
@@ -72,17 +74,34 @@ func do(ctx *fasthttp.RequestCtx) {
 		println("doRequest.Save", err.Error())
 	}
 
+	var responseStructure Catalog
 	xmlResponse, err := doRequest.Send() // отправляет ответ запроса
-
 	if err != nil {
 		println("doRequest.Send", err.Error())
 	}
-	println("xmlResponse", xmlResponse) // выводит ответ в xml
 
-	ctx.Response.Header.Add("Content-Type", "application/json; charset=utf-8") // формируем заголовок
-	ctx.Response.Header.Add("Accept", "application/json")
+	if err := xml.Unmarshal([]byte(xmlResponse), &responseStructure); err != nil {
+		println("xml.Unmarshal", err.Error())
+	}
+
+	for i, item := range responseStructure.CD {
+		println(i, item.Title, item.Artist, item.Country, item.Company)
+	}
+
+	//println("xmlResponse", xmlResponse) // выводит ответ в xml
+
 	ctx.Response.SetBody(res) // формируем тело
+}
 
+type CatalogItem struct {
+	Title   string `xml:"TITLE"`
+	Artist  string `xml:"ARTIST"`
+	Country string `xml:"COUNTRY"`
+	Company string `xml:"COMPANY"`
+}
+
+type Catalog struct {
+	CD []CatalogItem `xml:"CD"`
 }
 
 type APIError struct {
@@ -107,7 +126,9 @@ type DoResponse struct {
 
 func (r DoRequest) Save() error {
 	db := getDB()
-	defer db.Close()
+	if db != nil {
+		defer db.Close()
+	}
 
 	return nil
 }
@@ -115,31 +136,32 @@ func (r DoRequest) Save() error {
 func (r DoRequest) Send() (string, error) {
 
 	body := ""
+	req := fasthttp.AcquireRequest() // запрос
 
-	req := fasthttp.AcquireRequest()                 // запрос
-	req.SetRequestURI("https://ibskg.ru:5858/check") //???
-	req.Header.SetMethod("POST")                     // запрос ПОСТ
-	req.SetBodyString(body)                          // задать тело запроса
+	req.SetRequestURI("https://www.w3schools.com/xml/cd_catalog.xml") //???
+	req.Header.SetMethod("GET")                                       // запрос ПОСТ/GET
+	req.SetBodyString(body)                                           // задать тело запроса
 
 	resp := fasthttp.AcquireResponse() // ответ
-	client := &fasthttp.Client{}       // создаем клиента, надо тело
-	client.Do(req, resp)               // выполнить запрос ответ
-
-	bodyBytes := resp.Body()
-	println(string(bodyBytes))
 
 	req.Header.Add("Content-Type", "applcation/soap+xml")
 	req.Header.Add("SOAPAction", "''")
+
+	client := &fasthttp.Client{} // создаем клиента, надо тело
+	client.Do(req, resp)         // выполнить запрос ответ
+
+	bodyBytes := resp.Body()
+	println("resp.StatusCode()", resp.StatusCode())
 
 	return string(bodyBytes), nil
 }
 
 func getDB() *gorm.DB {
-	//db, err := gorm.Open("MySQL", "u_payments:u_payments@/a_payments?charset=utf8&parseTime=True&loc=Local")
 	db, err := gorm.Open("postgres", "host=localhost user=asel1 password=Asel1 dbname=ibskg sslmode=disable")
 
 	if err != nil {
 		log.Println("failed to connect database")
+		return nil
 	}
 	return db.LogMode(true)
 }
@@ -178,5 +200,13 @@ func AuthMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 		// Request Basic Authentication otherwise
 		ctx.Response.Header.Set("WWW-Authenticate", "Basic realm=Restricted")
 		ctx.Error(fasthttp.StatusMessage(fasthttp.StatusUnauthorized), fasthttp.StatusUnauthorized)
+	})
+}
+
+func HeadersMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
+	return fasthttp.RequestHandler(func(ctx *fasthttp.RequestCtx) {
+		ctx.Response.Header.Add("Content-Type", "application/json; charset=utf-8") // формируем заголовок
+		ctx.Response.Header.Add("Accept", "application/json")
+		next(ctx)
 	})
 }
