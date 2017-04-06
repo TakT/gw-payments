@@ -205,8 +205,7 @@ func AuthMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 
 func HeadersMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 	return fasthttp.RequestHandler(func(ctx *fasthttp.RequestCtx) {
-		ctx.Response.Header.Add("Content-Type", "application/json; charset=utf-8") // формируем заголовок
-		ctx.Response.Header.Add("Accept", "application/json")
+		ctx.SetContentType("application/json; charset=utf-8")
 		next(ctx)
 	})
 }
