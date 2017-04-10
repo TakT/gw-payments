@@ -16,7 +16,7 @@ func main() {
 
 	r := fasthttprouter.New() // переменная для https запроса
 
-	baseAuth := base64.StdEncoding.EncodeToString([]byte("test:test"))
+	baseAuth := base64.StdEncoding.EncodeToString([]byte("Basic:dGVzdDp0ZXN0"))
 	println("BaseAuth", baseAuth)
 
 	r.GET("/check/:id", AddMiddleware(check, AuthMiddleware, HeadersMiddleware))  // получить данные для проверки
@@ -184,8 +184,8 @@ func AuthMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 			// Check credentials
 			payload, err := base64.StdEncoding.DecodeString(string(auth[len(basicAuthPrefix):]))
 			if err == nil {
-				user := []byte("test")
-				password := []byte("test")
+				user := []byte("Basic")
+				password := []byte("dGVzdDp0ZXN0")
 				pair := bytes.SplitN(payload, []byte(":"), 2)
 				if len(pair) == 2 &&
 					bytes.Equal(pair[0], user) &&
