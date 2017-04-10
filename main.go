@@ -16,8 +16,8 @@ func main() {
 
 	r := fasthttprouter.New() // переменная для https запроса
 
-	/*baseAuth := base64.StdEncoding.EncodeToString([]byte("Basic:dGVzdDp0ZXN0"))
-	println("BaseAuth", baseAuth)*/
+	baseAuth := base64.StdEncoding.EncodeToString([]byte("Basic:dGVzdDp0ZXN0"))
+	println("BaseAuth", baseAuth)
 
 	r.GET("/check/:id", AddMiddleware(check, AuthMiddleware, HeadersMiddleware))  // получить данные для проверки
 	r.POST("/check/:id/do", AddMiddleware(do, AuthMiddleware, HeadersMiddleware)) // выполнить действие
@@ -165,14 +165,14 @@ func getDB() *gorm.DB {
 	}
 	return db.LogMode(true)
 }
-/*
+
 func AddMiddleware(h fasthttp.RequestHandler, middleware ...func(handler fasthttp.RequestHandler) fasthttp.RequestHandler) fasthttp.RequestHandler {
 	for _, mw := range middleware {
 		h = mw(h)
 	}
 	return h
-}*/
-/*
+}
+
 // что это? авторизация, но куда?
 var basicAuthPrefix = []byte("Basic")
 
@@ -200,7 +200,7 @@ func AuthMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 		// Request Basic Authentication otherwise
 		ctx.Response.Header.Set("WWW-Authenticate", "Basic realm=Restricted")
 		ctx.Error(fasthttp.StatusMessage(fasthttp.StatusUnauthorized), fasthttp.StatusUnauthorized)
-	})*/
+	})
 }
 
 func HeadersMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
