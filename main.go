@@ -16,8 +16,8 @@ func main() {
 
 	r := fasthttprouter.New() // переменная для https запроса
 
-	baseAuth := base64.StdEncoding.EncodeToString([]byte("Basic:dGVzdDp0ZXN0"))
-	println("BaseAuth", baseAuth)
+	/*baseAuth := base64.StdEncoding.EncodeToString([]byte("Basic:dGVzdDp0ZXN0"))
+	println("BaseAuth", baseAuth)*/
 
 	r.GET("/check/:id", AddMiddleware(check, AuthMiddleware, HeadersMiddleware))  // получить данные для проверки
 	r.POST("/check/:id/do", AddMiddleware(do, AuthMiddleware, HeadersMiddleware)) // выполнить действие
