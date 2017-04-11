@@ -174,7 +174,7 @@ func AddMiddleware(h fasthttp.RequestHandler, middleware ...func(handler fasthtt
 }
 
 // что это? авторизация, но куда?
-var basicAuthPrefix = []byte("Basic")
+var basicAuthPrefix = []byte("Basic ")
 
 func AuthMiddleware(next fasthttp.RequestHandler) fasthttp.RequestHandler {
 	return fasthttp.RequestHandler(func(ctx *fasthttp.RequestCtx) {
